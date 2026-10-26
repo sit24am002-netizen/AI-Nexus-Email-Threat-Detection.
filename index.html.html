@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI Nexus – Email Threat Prediction</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--tx:#141b2d;--mu:#5d6a85;--bd:#dde3f0;--ac:#3b5bdb;--ok:#2b9348;--okb:#e3f6e8;--wa:#b7791f;--wab:#fff3d6;--er:#d62839;--erb:#fde4e7;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1424;--card:#171f35;--tx:#e8edfb;--mu:#9aa7c7;--bd:#28324f;--ac:#7b93ff;--ok:#58d17a;--okb:#143323;--wa:#f2b84b;--wab:#3a2e12;--er:#ff6b7a;--erb:#401a22}}
+:root[data-theme="dark"]{--bg:#0e1424;--card:#171f35;--tx:#e8edfb;--mu:#9aa7c7;--bd:#28324f;--ac:#7b93ff;--ok:#58d17a;--okb:#143323;--wa:#f2b84b;--wab:#3a2e12;--er:#ff6b7a;--erb:#401a22}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--bd)}
+h1{font-size:18px;margin:0;margin-right:auto}h1 span{color:var(--ac)}
+nav{display:flex;gap:4px;flex-wrap:wrap}
+button{font:inherit;cursor:pointer;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:8px;padding:6px 12px}
+button.on,button.pri{background:var(--ac);color:#fff;border-color:var(--ac)}
+main{max-width:1100px;margin:0 auto;padding:16px}
+.grid{display:grid;gap:12px}.g4{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}.g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px}
+.big{font-size:28px;font-weight:700}.mu{color:var(--mu);font-size:13px}
+.badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600}
+.safe{background:var(--okb);color:var(--ok)}.sus{background:var(--wab);color:var(--wa)}.high{background:var(--erb);color:var(--er)}
+.split{display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:12px}@media(max-width:760px){.split{grid-template-columns:1fr}}
+.row{padding:10px;border-bottom:1px solid var(--bd);cursor:pointer}.row:hover,.row.sel{background:var(--bg)}
+.row b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meter{height:10px;border-radius:9px;background:var(--bd);overflow:hidden;margin:6px 0}.meter i{display:block;height:100%}
+mark{border-radius:3px;padding:0 2px;color:inherit}.mp{background:#ffd54a66}.mr{background:#ff5c7066}.ms{background:#7aa2ff66}
+.link{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 0;border-top:1px dashed var(--bd)}
+.bar{display:flex;align-items:flex-end;gap:10px;height:120px}.bar div{flex:1;text-align:center;font-size:12px}.bar i{display:block;border-radius:6px 6px 0 0;margin-bottom:4px}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:7px;border-bottom:1px solid var(--bd)}
+.scroll{overflow-x:auto}textarea,input{width:100%;font:inherit;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:8px}
+#toasts{position:fixed;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));display:grid;gap:8px;z-index:20;max-width:320px}
+.toast{padding:10px 12px;border-radius:10px;background:var(--card);border:1px solid var(--bd);border-left:5px solid var(--ac);box-shadow:0 4px 14px #0003}
+#modal{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;padding:16px;z-index:30}
+#modal .card{max-width:440px;border:2px solid var(--er)}
+ul{margin:6px 0;padding-left:20px}pre{white-space:pre-wrap;font:13px/1.5 ui-monospace,Menlo,monospace}
+</style></head><body>
+<header><h1>🛡️ AI <span>Nexus</span></h1>
+<nav id="nav"></nav>
+<label class="mu"><input type="checkbox" id="live" checked style="width:auto"> Live monitoring</label>
+<label class="mu"><input type="checkbox" id="voice" checked style="width:auto"> Voice alerts</label>
+<button id="gm" class="pri">Connect Gmail</button></header>
+<main id="v"></main>
+<div id="toasts"></div>
+<div id="modal"><div class="card"><h3 style="margin-top:0;color:var(--er)">⚠️ Warning: risky link</h3><div id="mb"></div><p class="mu">Pre-click check by AI Nexus. This is a prototype, so no real page will open.</p><button class="pri" onclick="cm()">Go back (recommended)</button> <button onclick="cm();toast('Prototype: navigation blocked for safety')">Proceed anyway</button></div></div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const KW={phish:{urgent:1,verify:1,password:1,suspended:1.2,login:.7,confirm:.6,account:.6,bank:.6,click:.6,immediately:.8,expire:.8,locked:1},
+ransom:{encrypted:1.5,bitcoin:1.5,ransom:1.8,decrypt:1.3,"your files":1.2,wallet:.8,payment:.5},
+spam:{winner:1,lottery:1.3,free:.5,prize:1,congratulations:.8,offer:.4,"limited time":.7}};
+const LBL={phish:'Phishing',ransom:'Ransomware',spam:'Spam'},MC={phish:'mp',ransom:'mr',spam:'ms'};
+const RISKY=['exe','js','scr','vbs','iso','docm','xlsm','zip','bat'];
+function linkCheck(l){const r=[];let h;try{h=new URL(l.href).hostname}catch(e){h=''}
+if(/^\d+\.\d+\.\d+\.\d+$/.test(h))r.push('Uses a raw IP address');
+if(/\.(xyz|top|ru|tk|click)$/.test(h))r.push('Unusual domain ending');
+if(/bit\.ly|tinyurl|t\.co/.test(h))r.push('Shortened link hides the real site');
+if(l.href.startsWith('http:'))r.push('Not encrypted (HTTP)');
+if(/[0-9]/.test(h.split('.')[0])&&/(paypa|g00|micr0|amaz0)/.test(h)||/(paypa1|g00gle|micr0soft)/.test(h))r.push('Looks like a fake brand name');
+const t=l.text.match(/[a-z0-9-]+\.(com|in|org)/i);if(t&&h&&!h.endsWith(t[0].toLowerCase()))r.push('Link text shows “'+t[0]+'” but goes to '+h);
+return r}
+function analyze(e){const txt=(e.subject+' '+e.body).toLowerCase(),sum={phish:0,ransom:0,spam:0},hits=[];
+for(const c in KW)for(const w in KW[c])if(txt.includes(w)){sum[c]+=KW[c][w];hits.push({w,c})}
+const links=(e.links||[]).map(l=>({...l,bad:linkCheck(l)})),atts=(e.atts||[]).map(a=>{const x=a.split('.').slice(1).map(s=>s.toLowerCase());const bad=x.some(s=>RISKY.includes(s));return{n:a,bad,dbl:x.length>1&&bad}});
+links.forEach(l=>sum.phish+=l.bad.length*1.1);atts.forEach(a=>{sum.ransom+=a.bad?(a.dbl?2.6:2):0});
+const s=sum.phish+sum.ransom+sum.spam,p=1/(1+Math.exp(-(s-3)));
+const cls=p>.85?'high':p>=.6?'sus':'safe';let type='Safe';
+if(cls!=='safe'){type=LBL[Object.keys(sum).sort((a,b)=>sum[b]-sum[a])[0]]}
+const why=[];if(hits.length)why.push('Suspicious words found: '+[...new Set(hits.map(h=>h.w))].join(', '));
+links.forEach(l=>l.bad.forEach(b=>why.push('Link: '+b)));atts.forEach(a=>a.bad&&why.push('Risky attachment: '+a.n+(a.dbl?' (double file extension)':'')));
+return{p,cls,type,hits,links,atts,why}}
+let id=0;const mk=(from,subject,body,links,atts)=>({id:++id,from,subject,body,links,atts,time:new Date(),...{}});
+const E=[
+mk('security@paypa1-alerts.xyz','Urgent: your account is suspended','Dear user, we noticed unusual login activity. Please verify your password immediately or your account will expire in 24 hours. Click the button below to confirm.',[{text:'Verify at paypal.com',href:'http://paypa1-alerts.xyz/login'}],[]),
+mk('team@sriSairam.edu','Project review meeting on Friday','Hi all, please find the agenda for the AI Nexus review on Friday at 10 AM in Lab 3. Bring your progress notes.',[{text:'Agenda doc',href:'https://docs.google.com/document/d/agenda'}],[]),
+mk('hr@c0mpany-payroll.top','Salary slip attached','Please open the attached slip. Payment details are inside, confirm your login to view.',[],['salary_slip.pdf.exe']),
+mk('noreply@lucky-draw.ru','Congratulations winner! Free prize','You are a lottery winner! Claim your free prize in limited time.',[{text:'Claim now',href:'http://bit.ly/3xPrize'}],[]),
+mk('unknown@mail-secure.net','Your files are encrypted','Your files have been encrypted. Send bitcoin payment to this wallet to decrypt. This is your ransom notice.',[],['readme.zip']),
+mk('library@sairam.edu','Book return reminder','Your borrowed book is due next Monday. Please return it at the library counter.',[],[]),
+mk('support@bank-verify.top','Confirm your bank login','Your bank account is locked. Click to verify your password and confirm details.',[{text:'Login at hdfcbank.com',href:'https://secure-check.top/hdfc'}],[])];
+const POOL=[
+['alerts@amaz0n-secure.xyz','Account locked – verify now','Urgent: your account is locked. Click to verify your password immediately.',[{text:'amazon.com',href:'http://192.168.4.7/amz'}],[]],
+['mentor@sairam.edu','Conference paper feedback','Good draft. Please update the references and share the final PDF by Wednesday.',[],[]],
+['it@free-offer-now.top','Free offer for you','Congratulations winner, free prize offer for a limited time.',[{text:'claim',href:'http://tinyurl.com/zz'}],[]],
+['ops@pay-decrypt.ru','Pay ransom to decrypt','All your files are encrypted. Bitcoin payment needed to decrypt.',[],['invoice.docm']]];
+let pi=0,sel=1,tab='inbox';const hist=[];
+E.forEach(e=>{e.r=analyze(e);hist.push(e)});
+const toast=m=>{const t=document.createElement('div');t.className='toast';t.textContent=m;$('#toasts').append(t);setTimeout(()=>t.remove(),4500)};
+const speak=m=>{if(!$('#voice').checked)return;try{speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(m))}catch(e){}};
+const B=c=>`<span class="badge ${c}">${{safe:'Safe',sus:'Suspicious',high:'High Risk'}[c]}</span>`;
+const col=c=>({safe:'var(--ok)',sus:'var(--wa)',high:'var(--er)'}[c]);
+const T=[['inbox','Inbox'],['dash','Dashboard'],['scan','Analyzer'],['hist','History'],['rep','Reports']];
+function nav(){$('#nav').innerHTML=T.map(t=>`<button class="${tab==t[0]?'on':''}" onclick="tab='${t[0]}';render()">${t[1]}</button>`).join('')}
+function hl(e){let b=esc(e.body);e.r.hits.forEach(h=>{b=b.replace(new RegExp('('+h.w+')','gi'),`<mark class="${MC[h.c]}">$1</mark>`)});return b}
+function inbox(){const e=E.find(x=>x.id==sel)||E[0],r=e.r;
+return`<div class="split"><div class="card" style="padding:0"><div class="scroll">${E.map(x=>`<div class="row ${x.id==e.id?'sel':''}" onclick="sel=${x.id};render()"><b>${esc(x.subject)}</b><span class="mu">${esc(x.from)}</span> ${B(x.r.cls)} <span class="mu">${(x.r.p*100|0)}%</span></div>`).join('')}</div></div>
+<div class="card"><h3 style="margin:0">${esc(e.subject)}</h3><div class="mu">From ${esc(e.from)}</div>
+<div style="margin:10px 0">${B(r.cls)} <span class="badge" style="background:var(--bg)">${r.type}</span></div>
+<div class="mu">Email risk score: <b style="color:var(--tx)">${(r.p*100).toFixed(0)}%</b> (safe &lt; 60%, suspicious 60–85%, high risk &gt; 85%)</div>
+<div class="meter"><i style="width:${r.p*100}%;background:${col(r.cls)}"></i></div>
+<p>${hl(e)}</p>
+<p class="mu"><mark class="mp">Phishing words</mark> <mark class="mr">Ransomware words</mark> <mark class="ms">Spam words</mark></p>
+${r.links.length?'<b>Links</b>'+r.links.map((l,i)=>`<div class="link"><span>${esc(l.text)}</span>${l.bad.length?'<span class="badge high">Suspicious</span>':'<span class="badge safe">Looks safe</span>'}<button onclick="clk(${e.id},${i})">Open link</button></div>`).join(''):''}
+${r.atts.length?'<b>Attachments</b>'+r.atts.map(a=>`<div class="link">📎 ${esc(a.n)} ${a.bad?'<span class="badge high">Malicious</span>':'<span class="badge safe">Clean</span>'}</div>`).join(''):''}
+<b>Why this score? (Threat explanation)</b>${r.why.length?'<ul>'+r.why.map(w=>`<li>${esc(w)}</li>`).join('')+'</ul>':'<p class="mu">No suspicious elements found.</p>'}
+<button onclick="speak('${r.cls=='high'?'High risk email. Do not click anything.':r.cls=='sus'?'This email looks suspicious. Be careful.':'This email looks safe.'}')">🔊 Read alert</button>
+<button onclick="E.splice(E.findIndex(x=>x.id==${e.id}),1);toast('Moved to spam / quarantine');render()">Quarantine</button></div></div>`}
+function clk(i,k){const l=E.find(x=>x.id==i).r.links[k];if(l.bad.length){$('#mb').innerHTML='<b>'+esc(l.href)+'</b><ul>'+l.bad.map(b=>`<li>${esc(b)}</li>`).join('')+'</ul>';$('#modal').style.display='flex';speak('Warning. This link looks dangerous.')}else toast('Link is safe (simulated open)')}
+function cm(){$('#modal').style.display='none'}
+const cnt=()=>({safe:hist.filter(h=>h.r.cls=='safe').length,sus:hist.filter(h=>h.r.cls=='sus').length,high:hist.filter(h=>h.r.cls=='high').length});
+function dash(){const c=cnt(),n=hist.length||1,ty={};hist.forEach(h=>ty[h.r.type]=(ty[h.r.type]||0)+1);
+const bars=['safe','sus','high'].map(k=>`<div><i style="height:${c[k]/n*100}px;background:${col(k)}"></i>${c[k]}<br>${{safe:'Safe',sus:'Suspicious',high:'High'}[k]}</div>`).join('');
+return`<div class="grid g4"><div class="card"><div class="mu">Emails scanned</div><div class="big">${hist.length}</div></div><div class="card"><div class="mu">Threats blocked</div><div class="big" style="color:var(--er)">${c.high+c.sus}</div></div><div class="card"><div class="mu">Gmail</div><div class="big" style="font-size:18px">${gm?'Connected':'Not connected'}</div></div><div class="card"><div class="mu">Monitoring</div><div class="big" style="font-size:18px">${$('#live').checked?'● Live':'Paused'}</div></div></div>
+<div class="grid g2" style="margin-top:12px"><div class="card"><b>Risk classification</b><div class="bar">${bars}</div></div><div class="card"><b>Threat types</b>${Object.entries(ty).map(([k,v])=>`<div style="margin-top:8px">${k} (${v})<div class="meter"><i style="width:${v/n*100}%;background:var(--ac)"></i></div></div>`).join('')}</div></div>
+<div class="card" style="margin-top:12px"><b>Recent risk scores</b><div class="bar" style="height:90px">${hist.slice(-14).map(h=>`<div title="${esc(h.subject)}"><i style="height:${h.r.p*70}px;background:${col(h.r.cls)}"></i></div>`).join('')}</div></div>`}
+function scan(){return`<div class="card"><b>Analyze any email</b><p class="mu">Paste an email. The model scores it like the TF-IDF + Logistic Regression pipeline in the paper (simulated with weighted keywords).</p>
+<input id="sf" placeholder="Subject"><br><br><textarea id="sb" rows="5" placeholder="Email body (include a link like http://bit.ly/abc if you want)"></textarea><br><br><input id="sa" placeholder="Attachment name (optional), e.g. invoice.pdf.exe"><br><br><button class="pri" onclick="doScan()">Scan email</button></div><div id="sr" style="margin-top:12px"></div>`}
+function doScan(){const b=$('#sb').value,m=b.match(/https?:\/\/\S+/g)||[],a=$('#sa').value.trim();
+const e={subject:$('#sf').value,body:b,links:m.map(h=>({text:h,href:h})),atts:a?[a]:[]};e.r=analyze(e);e.from='manual@scan';e.time=new Date();e.id=++id;hist.push(e);
+$('#sr').innerHTML=`<div class="card">${B(e.r.cls)} <span class="badge" style="background:var(--bg)">${e.r.type}</span> <b>${(e.r.p*100).toFixed(0)}%</b><div class="meter"><i style="width:${e.r.p*100}%;background:${col(e.r.cls)}"></i></div><p>${hl(e)}</p>${e.r.why.length?'<ul>'+e.r.why.map(w=>`<li>${esc(w)}</li>`).join('')+'</ul>':'<p class="mu">No suspicious elements found.</p>'}</div>`}
+const hi=()=>`<div class="card scroll"><table><tr><th>Time</th><th>From</th><th>Subject</th><th>Type</th><th>Score</th><th>Class</th></tr>${hist.slice().reverse().map(h=>`<tr><td>${h.time.toLocaleTimeString()}</td><td>${esc(h.from)}</td><td>${esc(h.subject||'(none)')}</td><td>${h.r.type}</td><td>${(h.r.p*100|0)}%</td><td>${B(h.r.cls)}</td></tr>`).join('')}</table></div>`;
+function rep(){const c=cnt(),top=hist.filter(h=>h.r.cls=='high').slice(-3).map(h=>'• '+h.subject+' ('+(h.r.p*100|0)+'%)').join('\n')||'None';
+return`<div class="card"><b>Security report</b><pre>Date: ${new Date().toDateString()}
+Emails scanned: ${hist.length}
+Safe: ${c.safe}   Suspicious: ${c.sus}   High risk: ${c.high}
+
+Latest high-risk emails:
+${esc(top)}
+
+Advice:
+• Do not click links marked Suspicious.
+• Never open .exe, .zip or .docm files from unknown senders.
+• Report phishing emails and keep backups to stay safe from ransomware.</pre><button onclick="navigator.clipboard&&navigator.clipboard.writeText(document.querySelector('pre').innerText).then(()=>toast('Report copied'))">Copy report</button></div>`}
+let gm=false;$('#gm').onclick=()=>{gm=!gm;$('#gm').textContent=gm?'Gmail connected ✓':'Connect Gmail';toast(gm?'OAuth 2.0 sign-in simulated. Reading subject, body and snippet.':'Gmail disconnected');render()};
+function render(){nav();$('#v').innerHTML={inbox,dash,scan,hist:hi,rep}[tab]()}
+setInterval(()=>{if(!$('#live').checked)return;const p=POOL[pi++%POOL.length],e=mk(...p);e.r=analyze(e);E.unshift(e);hist.push(e);
+toast((e.r.cls=='high'?'🚨 High-risk email: ':e.r.cls=='sus'?'⚠️ Suspicious email: ':'📩 New email: ')+e.subject);
+if(e.r.cls=='high')speak('High risk email detected. '+e.subject);
+if(tab=='inbox'||tab=='dash'||tab=='hist')render()},9000);
+render();
+</script></body></html>
